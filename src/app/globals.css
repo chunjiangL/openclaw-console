@@ -1,0 +1,183 @@
+@import "tailwindcss";
+
+/* ===== Runtime CSS variables — flip per theme ===== */
+:root {
+  --surface:               #ffffff;
+  --surface-alt:           #f0f0f0;
+  --fg:                    #000000;
+  --fg-muted:              rgba(0, 0, 0, 0.50);
+  --fg-dim:                rgba(0, 0, 0, 0.40);
+  --fg-ghost:              rgba(0, 0, 0, 0.30);
+  --fg-subtle:             rgba(0, 0, 0, 0.60);
+  --fg-faint:              rgba(0, 0, 0, 0.70);
+  --border-default:        rgba(0, 0, 0, 0.15);
+  --border-interactive:    rgba(0, 0, 0, 0.20);
+  --border-muted:          rgba(0, 0, 0, 0.10);
+  --border-pill:           rgba(0, 0, 0, 0.25);
+  --border-hover:          rgba(0, 0, 0, 0.50);
+  --border-focus:          rgba(0, 0, 0, 0.60);
+  --border-active:         rgba(0, 0, 0, 0.40);
+  --border-solid:          #000000;
+  --accent:                #000000;
+  --accent-fg:             #ffffff;
+  --accent-hover:          rgba(0, 0, 0, 0.80);
+  --overlay:               rgba(0, 0, 0, 0.80);
+  --active:                rgba(0, 0, 0, 0.10);
+  --hover:                 rgba(0, 0, 0, 0.05);
+  --divider:               rgba(0, 0, 0, 0.20);
+  --divider-dim:           rgba(0, 0, 0, 0.10);
+  --divider-bright:        rgba(0, 0, 0, 0.30);
+  --scanline:              rgba(0, 0, 0, 0.012);
+  --scrollbar-track:       #ffffff;
+  --scrollbar-thumb:       rgba(0, 0, 0, 0.20);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.40);
+  --selection-bg:          rgba(0, 0, 0, 0.30);
+  --selection-fg:          #000000;
+  --focus-ring:            #000000;
+  --placeholder:           rgba(0, 0, 0, 0.30);
+}
+
+.dark {
+  --surface:               #000000;
+  --surface-alt:           #0a0a0a;
+  --fg:                    #ffffff;
+  --fg-muted:              rgba(255, 255, 255, 0.50);
+  --fg-dim:                rgba(255, 255, 255, 0.40);
+  --fg-ghost:              rgba(255, 255, 255, 0.30);
+  --fg-subtle:             rgba(255, 255, 255, 0.60);
+  --fg-faint:              rgba(255, 255, 255, 0.70);
+  --border-default:        rgba(255, 255, 255, 0.15);
+  --border-interactive:    rgba(255, 255, 255, 0.20);
+  --border-muted:          rgba(255, 255, 255, 0.10);
+  --border-pill:           rgba(255, 255, 255, 0.25);
+  --border-hover:          rgba(255, 255, 255, 0.50);
+  --border-focus:          rgba(255, 255, 255, 0.60);
+  --border-active:         rgba(255, 255, 255, 0.40);
+  --border-solid:          #ffffff;
+  --accent:                #ffffff;
+  --accent-fg:             #000000;
+  --accent-hover:          rgba(255, 255, 255, 0.80);
+  --overlay:               rgba(0, 0, 0, 0.80);
+  --active:                rgba(255, 255, 255, 0.10);
+  --hover:                 rgba(255, 255, 255, 0.05);
+  --divider:               rgba(255, 255, 255, 0.20);
+  --divider-dim:           rgba(255, 255, 255, 0.10);
+  --divider-bright:        rgba(255, 255, 255, 0.30);
+  --scanline:              rgba(255, 255, 255, 0.012);
+  --scrollbar-track:       #000000;
+  --scrollbar-thumb:       rgba(255, 255, 255, 0.20);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.40);
+  --selection-bg:          rgba(255, 255, 255, 0.30);
+  --selection-fg:          #ffffff;
+  --focus-ring:            #ffffff;
+  --placeholder:           rgba(255, 255, 255, 0.30);
+}
+
+/* Claw — red text, yellow accents, white bg */
+.claw {
+  --surface:               #ffffff;
+  --surface-alt:           #fff8f0;
+  --fg:                    #cc2200;
+  --fg-muted:              #e06040;
+  --fg-dim:                #e08060;
+  --fg-ghost:              #e0a080;
+  --fg-subtle:             #d04020;
+  --fg-faint:              #cc3010;
+  --border-default:        #f0d0c0;
+  --border-interactive:    #e0b0a0;
+  --border-muted:          #f0e0d8;
+  --border-pill:           #d0a090;
+  --border-hover:          #cc2200;
+  --border-focus:          #cc2200;
+  --border-active:         #d04020;
+  --border-solid:          #cc2200;
+  --accent:                #ffba00;
+  --accent-fg:             #cc2200;
+  --accent-hover:          #ffd040;
+  --overlay:               #000000cc;
+  --active:                #ffba00;
+  --hover:                 #fff8e0;
+  --divider:               #e0b0a0;
+  --divider-dim:           #f0d0c0;
+  --divider-bright:        #d09080;
+  --scanline:              #cc220003;
+  --scrollbar-track:       #ffffff;
+  --scrollbar-thumb:       #e0b0a0;
+  --scrollbar-thumb-hover: #cc2200;
+  --selection-bg:          #ffba00;
+  --selection-fg:          #cc2200;
+  --focus-ring:            #cc2200;
+  --placeholder:           #e0a080;
+}
+
+/* ===== Register as Tailwind v4 theme tokens ===== */
+@theme {
+  --color-surface:            var(--surface);
+  --color-surface-alt:        var(--surface-alt);
+  --color-fg:                 var(--fg);
+  --color-fg-muted:           var(--fg-muted);
+  --color-fg-dim:             var(--fg-dim);
+  --color-fg-ghost:           var(--fg-ghost);
+  --color-fg-subtle:          var(--fg-subtle);
+  --color-fg-faint:           var(--fg-faint);
+  --color-border-default:     var(--border-default);
+  --color-border-interactive: var(--border-interactive);
+  --color-border-muted:       var(--border-muted);
+  --color-border-pill:        var(--border-pill);
+  --color-border-hover:       var(--border-hover);
+  --color-border-focus:       var(--border-focus);
+  --color-border-active:      var(--border-active);
+  --color-border-solid:       var(--border-solid);
+  --color-accent:             var(--accent);
+  --color-accent-fg:          var(--accent-fg);
+  --color-accent-hover:       var(--accent-hover);
+  --color-overlay:            var(--overlay);
+  --color-active:             var(--active);
+  --color-hover:              var(--hover);
+  --color-divider:            var(--divider);
+  --color-divider-dim:        var(--divider-dim);
+  --color-divider-bright:     var(--divider-bright);
+}
+
+/* ===== Global styles ===== */
+* {
+  border-color: var(--border-default);
+}
+
+body {
+  background: var(--surface);
+  color: var(--fg);
+  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+
+*, *::before, *::after { border-radius: 0 !important; }
+
+::selection {
+  background: var(--selection-bg);
+  color: var(--selection-fg);
+}
+
+:focus-visible {
+  outline: 1px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+/* Suppress focus ring on inputs/textareas/selects inside containers that handle focus-within */
+[data-focus-container] :focus-visible {
+  outline: none;
+}
+
+::placeholder {
+  color: var(--placeholder);
+}
