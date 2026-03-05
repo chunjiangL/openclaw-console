@@ -9,15 +9,7 @@ import type {
   GatewayResponseFrame,
   GatewayHelloOk,
 } from "./types";
-import {
-  loadOrCreateDeviceIdentity,
-  signDevicePayload,
-  buildDeviceAuthPayload,
-  loadDeviceAuthToken,
-  storeDeviceAuthToken,
-  clearDeviceAuthToken,
-  type DeviceIdentity,
-} from "./device-identity";
+import { uuid } from "../uuid";
 
 type Pending = {
   resolve: (value: unknown) => void;
@@ -47,6 +39,7 @@ export class GatewayClient {
   private ws: WebSocket | null = null;
   private pending = new Map<string, Pending>();
   private closed = false;
+  private authFailed = false;
   private lastSeq: number | null = null;
   private connectNonce: string | null = null;
   private connectSent = false;
@@ -67,6 +60,7 @@ export class GatewayClient {
 
   start(): void {
     this.closed = false;
+    this.authFailed = false;
     this.doConnect();
   }
 
@@ -94,7 +88,7 @@ export class GatewayClient {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       return Promise.reject(new Error("gateway not connected"));
     }
-    const id = crypto.randomUUID();
+    const id = uuid();
     const frame = { type: "req", id, method, params };
 
     const timeout = timeoutMs ?? this.opts.requestTimeoutMs ?? 30_000;
@@ -143,7 +137,10 @@ export class GatewayClient {
       );
       this.setState("disconnected");
       this.opts.onClose?.({ code: ev.code, reason });
-      this.scheduleReconnect();
+      // Don't auto-reconnect on auth failures — user must retry manually
+      if (!this.authFailed) {
+        this.scheduleReconnect();
+      }
     });
     this.ws.addEventListener("error", () => {
       // close handler will fire
@@ -185,104 +182,31 @@ export class GatewayClient {
       this.connectTimer = null;
     }
 
-    const role = "operator";
-    const scopes = ["operator.admin", "operator.approvals", "operator.pairing"];
-    const clientId = "gateway-client";
-    const clientMode = "ui";
-
-    // Load or create device identity for Ed25519 signing
-    let deviceIdentity: DeviceIdentity | null = null;
-    let authToken = this.opts.token;
-    let canFallbackToShared = false;
-
-    try {
-      deviceIdentity = await loadOrCreateDeviceIdentity();
-      // Check for a stored device-specific token
-      const storedToken = loadDeviceAuthToken({
-        deviceId: deviceIdentity.deviceId,
-        role,
-      })?.token;
-      if (storedToken) {
-        canFallbackToShared = Boolean(this.opts.token);
-        authToken = storedToken;
-      }
-    } catch (err) {
-      console.warn("[gateway] device identity failed, falling back to token-only:", err);
-    }
-
-    const auth =
-      authToken ? { token: authToken } : undefined;
-
-    // Build device proof if we have an identity
-    let device: {
-      id: string;
-      publicKey: string;
-      signature: string;
-      signedAt: number;
-      nonce: string | undefined;
-    } | undefined;
-
-    if (deviceIdentity) {
-      const signedAtMs = Date.now();
-      const nonce = this.connectNonce ?? undefined;
-      const payload = buildDeviceAuthPayload({
-        deviceId: deviceIdentity.deviceId,
-        clientId,
-        clientMode,
-        role,
-        scopes,
-        signedAtMs,
-        token: authToken ?? null,
-        nonce,
-      });
-      const signature = await signDevicePayload(deviceIdentity.privateKey, payload);
-      device = {
-        id: deviceIdentity.deviceId,
-        publicKey: deviceIdentity.publicKey,
-        signature,
-        signedAt: signedAtMs,
-        nonce,
-      };
-    }
-
     const params = {
       minProtocol: 3,
       maxProtocol: 3,
       client: {
-        id: clientId,
+        id: "openclaw-control-ui",
         displayName: "Claw Console",
         version: "0.1.0",
         platform: typeof navigator !== "undefined" ? navigator.platform ?? "web" : "node",
-        mode: clientMode,
+        mode: "ui",
       },
-      role,
-      scopes,
-      device,
-      auth,
-      caps: [],
+      role: "operator",
+      scopes: ["operator.read", "operator.admin", "operator.approvals", "operator.pairing"],
+      auth: this.opts.token ? { token: this.opts.token } : undefined,
+      caps: ["tool-events"],
     };
 
     this.request<GatewayHelloOk>("connect", params)
       .then((hello) => {
-        // Store device token if server issued one
-        if (hello?.auth?.deviceToken && deviceIdentity) {
-          storeDeviceAuthToken({
-            deviceId: deviceIdentity.deviceId,
-            role: hello.auth.role ?? role,
-            token: hello.auth.deviceToken,
-            scopes: hello.auth.scopes ?? [],
-          });
-        }
         this.backoffMs = 800;
         this.setState("connected");
         this.opts.onHello?.(hello);
       })
       .catch((err) => {
         console.error("[gateway] connect failed:", err?.message ?? err);
-        // If device token failed, clear it and retry with shared token
-        if (canFallbackToShared && deviceIdentity) {
-          clearDeviceAuthToken({ deviceId: deviceIdentity.deviceId, role });
-        }
+        this.authFailed = true;
         this.opts.onError?.(err instanceof Error ? err : new Error(String(err)));
         this.ws?.close(4008, "connect failed");
       });

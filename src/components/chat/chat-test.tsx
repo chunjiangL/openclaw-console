@@ -2,11 +2,14 @@
 
 import { useGatewayStore } from "@/lib/stores/gateway-store";
 import { useChatStore } from "@/lib/stores/chat-store";
+import { useTraceStore } from "@/lib/stores/trace-store";
 import { useState, useEffect, useRef } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
 import { UserAvatar } from "@/components/ui/user-avatar";
+import { TraceTimeline } from "./trace-timeline";
 import { extractText } from "@/lib/gateway/types";
+import { uuid } from "@/lib/uuid";
 import type { ChatMessage, ChatHistoryResult } from "@/lib/gateway/types";
 
 export function ChatTest() {
@@ -21,11 +24,15 @@ export function ChatTest() {
   const [message, setMessage] = useState("");
   const [history, setHistory] = useState<ChatMessage[]>([]);
   const [sending, setSending] = useState(false);
+  const [tab, setTab] = useState<"chat" | "trace">("chat");
+  const traceEnabled = useTraceStore((s) => s.enabled);
+  const setTraceEnabled = useTraceStore((s) => s.setEnabled);
+  const traceData = useTraceStore((s) => s.traces.get(selectedAgentId));
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (selectedAgentId) {
-      setSessionKey(`agent:${selectedAgentId}:claw-console:test:${crypto.randomUUID().slice(0, 8)}`);
+      setSessionKey(`agent:${selectedAgentId}:claw-console:test:${uuid().slice(0, 8)}`);
     }
   }, [selectedAgentId]);
 
@@ -52,7 +59,7 @@ export function ChatTest() {
   const sendMessage = async () => {
     if (!message.trim() || !sessionKey || sending) return;
     setSending(true);
-    const idempotencyKey = crypto.randomUUID();
+    const idempotencyKey = uuid();
 
     try {
       const result = await rpc<{ runId: string; status: string }>("chat.send", {
@@ -107,9 +114,9 @@ export function ChatTest() {
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="mb-4 flex items-center gap-3">
+      <div className="mb-4 flex flex-wrap items-center gap-2 md:gap-3">
         <h2 className="text-sm font-bold uppercase tracking-wide text-fg">CHAT TEST</h2>
-        <div className="w-px h-4 bg-border-default" />
+        <div className="hidden md:block w-px h-4 bg-border-default" />
         <select
           value={selectedAgentId}
           onChange={(e) => setSelectedAgentId(e.target.value)}
@@ -127,7 +134,7 @@ export function ChatTest() {
           value={sessionKey}
           onChange={(e) => setSessionKey(e.target.value)}
           placeholder="SESSION KEY"
-          className="flex-1 border border-border-interactive bg-surface px-3 py-1.5 font-mono text-[10px] text-fg-subtle focus:outline-none focus:border-border-focus"
+          className="hidden sm:block flex-1 border border-border-interactive bg-surface px-3 py-1.5 font-mono text-[10px] text-fg-subtle focus:outline-none focus:border-border-focus"
         />
         <button
           onClick={loadHistory}
@@ -137,13 +144,51 @@ export function ChatTest() {
         </button>
       </div>
 
-      {/* Messages */}
+      {/* Tab bar */}
+      <div className="mb-2 flex items-center border-b border-border-default">
+        <button
+          onClick={() => setTab("chat")}
+          className={`px-4 py-1.5 font-mono text-[10px] uppercase tracking-wider transition-colors ${
+            tab === "chat"
+              ? "text-fg border-b-2 border-border-solid"
+              : "text-fg-ghost hover:text-fg-dim"
+          }`}
+        >
+          [CHAT]
+        </button>
+        {traceEnabled && traceData && traceData.entries.length > 0 && (
+          <button
+            onClick={() => setTab("trace")}
+            className={`px-4 py-1.5 font-mono text-[10px] uppercase tracking-wider transition-colors ${
+              tab === "trace"
+                ? "text-fg border-b-2 border-border-solid"
+                : "text-fg-ghost hover:text-fg-dim"
+            }`}
+          >
+            [TRACE: {agents.find((a) => a.agentId === selectedAgentId)?.name ?? "?"}]
+          </button>
+        )}
+        <div className="flex-1" />
+        <button
+          onClick={() => setTraceEnabled(!traceEnabled)}
+          className="px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-fg-ghost hover:text-fg-dim transition-colors"
+        >
+          {traceEnabled ? "[TRACE ON]" : "[TRACE OFF]"}
+        </button>
+      </div>
+
+      {/* Content area */}
+      {tab === "trace" && traceEnabled ? (
+        <div className="flex-1 overflow-y-auto border border-border-default bg-surface p-4">
+          <TraceTimeline agentId={selectedAgentId} />
+        </div>
+      ) : (
       <div className="flex-1 overflow-y-auto border border-border-default bg-surface p-4">
         {history.map((msg) => (
           <div key={msg.id} className="mb-3">
             {msg.role === "user" ? (
               <div className="flex justify-start">
-                <div className="flex items-start gap-2 max-w-[75%]">
+                <div className="flex items-start gap-2 max-w-[90%] sm:max-w-[75%]">
                   <UserAvatar size={20} className="mt-1 shrink-0 text-fg-dim" />
                   <div className="border border-border-interactive bg-active px-3 py-2">
                     <p className="font-mono text-sm text-fg whitespace-pre-wrap">{msg.content}</p>
@@ -152,7 +197,7 @@ export function ChatTest() {
               </div>
             ) : (
               <div className="flex justify-start">
-                <div className="flex items-start gap-2 max-w-[75%]">
+                <div className="flex items-start gap-2 max-w-[90%] sm:max-w-[75%]">
                   <AgentAvatar seed={selectedAgentId} size={20} className="mt-1 shrink-0" />
                   <div className="border border-border-default px-3 py-2">
                     <p className="font-mono text-sm text-fg-faint whitespace-pre-wrap">{msg.content}</p>
@@ -166,7 +211,7 @@ export function ChatTest() {
         {/* Active streaming */}
         {activeRuns.map((run) => (
           <div key={run.runId} className="mb-3 flex justify-start">
-            <div className="flex items-start gap-2 max-w-[75%]">
+            <div className="flex items-start gap-2 max-w-[90%] sm:max-w-[75%]">
               <AgentAvatar seed={selectedAgentId} size={20} className="mt-1 shrink-0" />
               <div className="border border-border-default px-3 py-2">
                 {run.status === "queued" ? (
@@ -185,7 +230,7 @@ export function ChatTest() {
         {/* Completed runs */}
         {completedRuns.map((run) => (
           <div key={run.runId} className="mb-3 flex justify-start">
-            <div className="flex items-start gap-2 max-w-[75%]">
+            <div className="flex items-start gap-2 max-w-[90%] sm:max-w-[75%]">
               <AgentAvatar seed={selectedAgentId} size={20} className="mt-1 shrink-0" />
               <div className="border border-border-default px-3 py-2">
                 <p className="font-mono text-sm text-fg-faint whitespace-pre-wrap">
@@ -198,6 +243,7 @@ export function ChatTest() {
 
         <div ref={messagesEndRef} />
       </div>
+      )}
 
       {/* Input */}
       <div className="mt-3 flex gap-2">

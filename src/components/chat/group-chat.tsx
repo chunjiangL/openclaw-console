@@ -3,11 +3,14 @@
 import { useGatewayStore } from "@/lib/stores/gateway-store";
 import { useChatStore, onRunComplete, type AgentRun } from "@/lib/stores/chat-store";
 import { useGroupStore, type GroupMessage } from "@/lib/stores/group-store";
+import { useTraceStore } from "@/lib/stores/trace-store";
 import { useRouter } from "@/lib/router";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { AgentAvatar } from "@/components/ui/agent-avatar";
 import { UserAvatar } from "@/components/ui/user-avatar";
+import { TraceTimeline } from "./trace-timeline";
+import { uuid } from "@/lib/uuid";
 import {
   buildSessionKey as _buildSessionKey,
   matchesGroup,
@@ -42,6 +45,10 @@ export function GroupChat() {
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("chat"); // "chat" | agentId
+  const traceEnabled = useTraceStore((s) => s.enabled);
+  const setTraceEnabled = useTraceStore((s) => s.setEnabled);
+  const traceMap = useTraceStore((s) => s.traces);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -70,7 +77,7 @@ export function GroupChat() {
             : "[ABORTED]";
 
       useGroupStore.getState().addMessage({
-        id: crypto.randomUUID(),
+        id: uuid(),
         groupId,
         role: "agent",
         agentId: run.agentId,
@@ -158,7 +165,7 @@ export function GroupChat() {
     userMessageId: string
   ): Promise<AgentRun | null> => {
     const sessionKey = buildSessionKey(agentId);
-    const idempotencyKey = crypto.randomUUID();
+    const idempotencyKey = uuid();
 
     try {
       const result = await rpc<{ runId: string; status: string }>(
@@ -204,7 +211,7 @@ export function GroupChat() {
         : group.agents;
 
     const userMsg: GroupMessage = {
-      id: crypto.randomUUID(),
+      id: uuid(),
       groupId: group.id,
       role: "user",
       content: input.trim(),
@@ -345,11 +352,11 @@ export function GroupChat() {
   return (
     <div className="flex h-full flex-col">
       {/* Group Header */}
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h2 className="text-sm font-bold uppercase tracking-wide text-fg">{group.name}</h2>
-          <div className="w-px h-4 bg-border-default" />
-          <span className="font-mono text-[10px] uppercase tracking-wider text-fg-dim">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2 md:gap-3 min-w-0">
+          <h2 className="text-sm font-bold uppercase tracking-wide text-fg shrink-0">{group.name}</h2>
+          <div className="hidden md:block w-px h-4 bg-border-default" />
+          <span className="font-mono text-[10px] uppercase tracking-wider text-fg-dim truncate">
             {groupAgents.map((a) => a.name).join(" / ")}
           </span>
         </div>
@@ -453,7 +460,55 @@ export function GroupChat() {
         )}
       </div>
 
-      {/* Messages */}
+      {/* Tab bar */}
+      <div className="mb-2 flex items-center border-b border-border-default">
+        <button
+          onClick={() => setActiveTab("chat")}
+          className={`px-4 py-1.5 font-mono text-[10px] uppercase tracking-wider transition-colors ${
+            activeTab === "chat"
+              ? "text-fg border-b-2 border-border-solid"
+              : "text-fg-ghost hover:text-fg-dim"
+          }`}
+        >
+          [CHAT]
+        </button>
+        {traceEnabled &&
+          group.agents
+            .filter((id) => {
+              const t = traceMap.get(id);
+              return t && t.entries.length > 0;
+            })
+            .map((id) => {
+              const a = agents.find((x) => x.agentId === id);
+              return (
+                <button
+                  key={id}
+                  onClick={() => setActiveTab(id)}
+                  className={`px-4 py-1.5 font-mono text-[10px] uppercase tracking-wider transition-colors ${
+                    activeTab === id
+                      ? "text-fg border-b-2 border-border-solid"
+                      : "text-fg-ghost hover:text-fg-dim"
+                  }`}
+                >
+                  [TRACE: {a?.name ?? id}]
+                </button>
+              );
+            })}
+        <div className="flex-1" />
+        <button
+          onClick={() => setTraceEnabled(!traceEnabled)}
+          className="px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-fg-ghost hover:text-fg-dim transition-colors"
+        >
+          {traceEnabled ? "[TRACE ON]" : "[TRACE OFF]"}
+        </button>
+      </div>
+
+      {/* Content area */}
+      {activeTab !== "chat" && traceEnabled ? (
+        <div className="flex-1 overflow-y-auto border border-border-default bg-surface p-4">
+          <TraceTimeline agentId={activeTab} />
+        </div>
+      ) : (
       <div className="flex-1 overflow-y-auto border border-border-default bg-surface p-4">
         {hasActiveFilters && (
           <div className="mb-3 font-mono text-[10px] uppercase tracking-wider text-fg-dim">
@@ -464,7 +519,7 @@ export function GroupChat() {
           if (msg.role === "user") {
             return (
               <div key={msg.id} className="mb-3 flex justify-start">
-                <div className="flex items-start gap-2 max-w-[75%]">
+                <div className="flex items-start gap-2 max-w-[90%] sm:max-w-[75%]">
                   <UserAvatar size={20} className="mt-1 shrink-0 text-fg-dim" />
                   <div>
                     <span className="font-mono text-[9px] text-fg-dim uppercase tracking-wider">YOU</span>
@@ -498,7 +553,7 @@ export function GroupChat() {
           const agent = agents.find((a) => a.agentId === msg.agentId);
           return (
             <div key={msg.id} className="mb-3 flex justify-start">
-              <div className="flex items-start gap-2 max-w-[75%]">
+              <div className="flex items-start gap-2 max-w-[90%] sm:max-w-[75%]">
                 <AgentAvatar seed={msg.agentId ?? "ai"} size={20} className="mt-1 shrink-0" />
                 <div>
                   <span className="font-mono text-[9px] text-fg-dim uppercase tracking-wider">
@@ -518,7 +573,7 @@ export function GroupChat() {
           const agent = agents.find((a) => a.agentId === run.agentId);
           return (
             <div key={run.runId} className="mb-3 flex justify-start">
-              <div className="flex items-start gap-2 max-w-[75%]">
+              <div className="flex items-start gap-2 max-w-[90%] sm:max-w-[75%]">
                 <AgentAvatar seed={run.agentId} size={20} className="mt-1 shrink-0" />
                 <div>
                   <span className="font-mono text-[9px] text-fg-dim uppercase tracking-wider">
@@ -553,7 +608,7 @@ export function GroupChat() {
             const agent = agents.find((a) => a.agentId === run.agentId);
             return (
               <div key={run.runId} className="mb-3 flex justify-start">
-                <div className="flex items-start gap-2 max-w-[75%]">
+                <div className="flex items-start gap-2 max-w-[90%] sm:max-w-[75%]">
                   <AgentAvatar seed={run.agentId} size={20} className="mt-1 shrink-0" />
                   <div>
                     <span className="font-mono text-[9px] text-fg-dim uppercase tracking-wider">
@@ -583,7 +638,7 @@ export function GroupChat() {
             const agent = agents.find((a) => a.agentId === run.agentId);
             return (
               <div key={run.runId} className="mb-3 flex justify-start">
-                <div className="flex items-start gap-2 max-w-[75%]">
+                <div className="flex items-start gap-2 max-w-[90%] sm:max-w-[75%]">
                   <AgentAvatar seed={run.agentId} size={20} className="mt-1 shrink-0" />
                   <div>
                     <span className="font-mono text-[9px] text-fg-dim uppercase tracking-wider">
@@ -603,6 +658,7 @@ export function GroupChat() {
 
         <div ref={messagesEndRef} />
       </div>
+      )}
 
       {/* Mention pills */}
       {mentions.length > 0 && (

@@ -13,7 +13,8 @@ import type {
   GatewayAgentRow,
   HealthSnapshot,
 } from "../gateway/types";
-import { bus } from "../event-bus";
+import { bus, type AgentTracePayload } from "../event-bus";
+import { useGroupStore } from "./group-store";
 
 type GatewayStore = {
   // Connection
@@ -97,6 +98,8 @@ export const useGatewayStore = create<GatewayStore>((set, get) => {
           get().loadAgents().catch(() => {});
           get().refreshHealth().catch(() => {});
           startHealthPolling();
+          // Sync group chats from gateway
+          useGroupStore.getState().syncFromGateway().catch(() => {});
         },
         onEvent(evt: GatewayEventFrame) {
           handleEvent(evt, get);
@@ -213,7 +216,14 @@ function handleEvent(
 ) {
   switch (evt.event) {
     case "agent": {
-      get().loadAgents().catch(() => {});
+      const payload = evt.payload as Record<string, unknown> | undefined;
+      if (payload?.runId && payload?.stream) {
+        // Agent execution trace event — route to trace store via bus
+        bus.emit("trace:event", { payload: payload as AgentTracePayload });
+      } else {
+        // Agent list change (create/delete/rename) — refresh
+        get().loadAgents().catch(() => {});
+      }
       break;
     }
     case "chat": {

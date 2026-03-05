@@ -2,6 +2,8 @@
 
 import { create } from "zustand";
 import { bus } from "../event-bus";
+import { uuid } from "../uuid";
+import { pullAndMergeGroups, schedulePushGroups } from "./group-sync";
 
 export type GroupChat = {
   id: string;
@@ -38,6 +40,8 @@ type GroupStore = {
   getGroupMessages: (groupId: string) => GroupMessage[];
   clearGroupMessages: (groupId: string) => void;
   persistGroups: () => void;
+  syncFromGateway: () => Promise<void>;
+  _pushToGateway: () => void;
 };
 
 const STORAGE_KEY = "claw-console:groups";
@@ -65,7 +69,7 @@ export const useGroupStore = create<GroupStore>((set, get) => ({
 
   createGroup(name, agents, mode = "parallel") {
     const group: GroupChat = {
-      id: crypto.randomUUID(),
+      id: uuid(),
       name,
       agents,
       responseMode: mode,
@@ -74,6 +78,7 @@ export const useGroupStore = create<GroupStore>((set, get) => ({
     };
     set((state) => ({ groups: [...state.groups, group] }));
     get().persistGroups();
+    get()._pushToGateway();
     return group;
   },
 
@@ -84,6 +89,7 @@ export const useGroupStore = create<GroupStore>((set, get) => ({
       ),
     }));
     get().persistGroups();
+    get()._pushToGateway();
   },
 
   deleteGroup(id) {
@@ -97,6 +103,7 @@ export const useGroupStore = create<GroupStore>((set, get) => ({
       };
     });
     get().persistGroups();
+    get()._pushToGateway();
   },
 
   setActiveGroup(id) {
@@ -136,6 +143,27 @@ export const useGroupStore = create<GroupStore>((set, get) => ({
     } catch {
       // storage full
     }
+  },
+
+  async syncFromGateway() {
+    // Lazy import to avoid circular dependency at module load time
+    const { useGatewayStore } = await import("./gateway-store");
+    const { rpc } = useGatewayStore.getState();
+    const localGroups = get().groups;
+    const result = await pullAndMergeGroups(rpc, localGroups);
+    if (result) {
+      set({ groups: result.merged });
+      get().persistGroups();
+    }
+  },
+
+  _pushToGateway() {
+    // Lazy import to avoid circular dependency at module load time
+    import("./gateway-store").then(({ useGatewayStore }) => {
+      const { connectionState, rpc } = useGatewayStore.getState();
+      if (connectionState !== "connected") return;
+      schedulePushGroups(rpc, get().groups);
+    });
   },
 }));
 

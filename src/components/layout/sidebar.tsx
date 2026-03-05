@@ -2,6 +2,10 @@
 
 import { useGatewayStore } from "@/lib/stores/gateway-store";
 import { useGroupStore } from "@/lib/stores/group-store";
+import {
+  useOrchestratorStore,
+  type OrchestratorPhase,
+} from "@/lib/stores/orchestrator-store";
 import { useRouter } from "@/lib/router";
 import { useState } from "react";
 
@@ -176,6 +180,9 @@ export function Sidebar() {
           })}
         </div>
 
+        {/* Team Mode */}
+        <TeamModeSection currentPath={currentPath} navigate={navigate} />
+
         {/* Chat Test */}
         <div className="mb-4">
           <div className="mb-2 px-3">
@@ -201,6 +208,79 @@ export function Sidebar() {
       {/* Bottom decoration */}
       <div className="h-px bg-divider" />
     </aside>
+  );
+}
+
+function TeamModeSection({
+  currentPath,
+  navigate,
+}: {
+  currentPath: string;
+  navigate: (path: string) => void;
+}) {
+  const phase = useOrchestratorStore((s) => s.phase);
+  const session = useOrchestratorStore((s) => s.session);
+  const approvedTasks = useOrchestratorStore((s) => s.approvedTasks);
+  const parsedTasks = useOrchestratorStore((s) => s.parsedTasks);
+
+  const hasSession = phase !== "idle";
+  const tasks = approvedTasks.length > 0 ? approvedTasks : parsedTasks;
+  const doneCount = tasks.filter((t) => t.status === "done").length;
+  const totalCount = tasks.length;
+  const isActive = currentPath === "/orchestrator";
+
+  const phaseIcon = (p: OrchestratorPhase): string => {
+    switch (p) {
+      case "idle": return "\u25CB";
+      case "planning": case "executing": case "reviewing": return "\u25D0";
+      case "awaiting_approval": return "\u25CE";
+      case "complete": return "\u25CF";
+      case "error": return "\u2716";
+    }
+  };
+
+  return (
+    <div className="mb-4">
+      <div className="mb-2 flex items-center justify-between px-3">
+        <span className="text-[10px] tracking-[0.25em] uppercase text-fg-muted">
+          {"\u2593"} TEAM MODE
+        </span>
+        <button
+          onClick={() => navigate("/orchestrator")}
+          className="text-[10px] text-fg-dim hover:text-fg transition-colors"
+          title="Create team session"
+        >
+          [+]
+        </button>
+      </div>
+      <div className="h-px bg-divider-dim mx-3 mb-2" />
+      {hasSession ? (
+        <button
+          onClick={() => navigate("/orchestrator")}
+          className={`flex w-full items-center px-3 py-1.5 text-xs transition-all ${
+            isActive
+              ? "text-fg border-l-2 border-border-solid bg-active"
+              : "text-fg-muted hover:text-fg hover:bg-hover"
+          }`}
+        >
+          <span className="mr-2 text-[10px]">
+            {phaseIcon(phase)}
+          </span>
+          <span className="flex-1 text-left font-mono text-xs truncate">
+            {session.title || "NEW SESSION"}
+          </span>
+          {totalCount > 0 && (
+            <span className="font-mono text-[9px] text-fg-dim ml-1">
+              {doneCount}/{totalCount}
+            </span>
+          )}
+        </button>
+      ) : (
+        <div className="px-3 text-[10px] uppercase tracking-wider text-fg-ghost">
+          NO ACTIVE SESSION
+        </div>
+      )}
+    </div>
   );
 }
 

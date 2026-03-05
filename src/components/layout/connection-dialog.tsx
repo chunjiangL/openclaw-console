@@ -53,7 +53,7 @@ export function ConnectionDialog({ onClose }: { onClose?: () => void }) {
           </div>
           <div>
             <label className="mb-1 block font-mono text-[10px] tracking-[0.2em] uppercase text-fg-muted">
-              AUTH TOKEN <span className="text-fg-ghost">(OPTIONAL)</span>
+              AUTH TOKEN
             </label>
             <div data-focus-container className="flex items-center border border-border-interactive bg-surface focus-within:border-border-focus transition-colors">
               <span className="pl-3 font-mono text-[10px] text-fg-ghost">&gt;</span>

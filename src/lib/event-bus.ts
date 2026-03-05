@@ -14,12 +14,22 @@ import type { GatewayAgentRow, GatewayEventFrame } from "./gateway/types";
 // ---------------------------------------------------------------------------
 // Event type map — add new events here
 // ---------------------------------------------------------------------------
+export type AgentTracePayload = {
+  runId: string;
+  seq: number;
+  stream: string;
+  ts: number;
+  data: Record<string, unknown>;
+  sessionKey?: string;
+};
+
 export type BusEvents = {
   "agent:deleted": { agentId: string };
   "agent:created": { agent: GatewayAgentRow };
   "agent:renamed": { agentId: string; oldName: string; newName: string };
   "agents:refreshed": { agents: GatewayAgentRow[] };
   "chat:event": { evt: GatewayEventFrame };
+  "trace:event": { payload: AgentTracePayload };
 };
 
 // ---------------------------------------------------------------------------
