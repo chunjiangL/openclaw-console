@@ -10,6 +10,12 @@ import type {
   GatewayHelloOk,
 } from "./types";
 import { uuid } from "../uuid";
+import {
+  loadOrCreateDeviceIdentity,
+  buildDeviceAuthPayload,
+  signDevicePayload,
+  storeDeviceAuthToken,
+} from "./device-identity";
 
 type Pending = {
   resolve: (value: unknown) => void;
@@ -182,19 +188,52 @@ export class GatewayClient {
       this.connectTimer = null;
     }
 
+    const clientId = "openclaw-control-ui";
+    const clientMode = "ui";
+    const role = "operator";
+    const scopes = ["operator.read", "operator.admin", "operator.approvals", "operator.pairing"];
+
+    // Build device identity for Ed25519 auth
+    let device: Record<string, unknown> | undefined;
+    try {
+      const identity = await loadOrCreateDeviceIdentity();
+      const signedAt = Date.now();
+      const payload = buildDeviceAuthPayload({
+        deviceId: identity.deviceId,
+        clientId,
+        clientMode,
+        role,
+        scopes,
+        signedAtMs: signedAt,
+        token: this.opts.token,
+        nonce: this.connectNonce,
+      });
+      const signature = await signDevicePayload(identity.privateKey, payload);
+      device = {
+        id: identity.deviceId,
+        publicKey: identity.publicKey,
+        signature,
+        signedAt,
+        nonce: this.connectNonce ?? undefined,
+      };
+    } catch (err) {
+      console.warn("[gateway] device identity error, connecting without:", err);
+    }
+
     const params = {
       minProtocol: 3,
       maxProtocol: 3,
       client: {
-        id: "openclaw-control-ui",
+        id: clientId,
         displayName: "Claw Console",
         version: "0.1.0",
         platform: typeof navigator !== "undefined" ? navigator.platform ?? "web" : "node",
-        mode: "ui",
+        mode: clientMode,
       },
-      role: "operator",
-      scopes: ["operator.read", "operator.admin", "operator.approvals", "operator.pairing"],
+      role,
+      scopes,
       auth: this.opts.token ? { token: this.opts.token } : undefined,
+      device,
       caps: ["tool-events"],
     };
 
@@ -202,6 +241,15 @@ export class GatewayClient {
       .then((hello) => {
         this.backoffMs = 800;
         this.setState("connected");
+        // Store server-issued device auth token if provided
+        if (hello.auth?.deviceToken && device) {
+          storeDeviceAuthToken({
+            deviceId: device.id as string,
+            role,
+            token: hello.auth.deviceToken,
+            scopes: hello.auth?.scopes,
+          });
+        }
         this.opts.onHello?.(hello);
       })
       .catch((err) => {

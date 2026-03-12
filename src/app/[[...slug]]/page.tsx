@@ -6,8 +6,6 @@ import { AgentList } from "@/components/agents/agent-list";
 import { AgentDetail } from "@/components/agents/agent-detail";
 import { ChatTest } from "@/components/chat/chat-test";
 import { GroupChat } from "@/components/chat/group-chat";
-import { OrchestratorPage } from "@/components/orchestrator/orchestrator-page";
-
 function PageContent() {
   const { currentPath } = useRouter();
 
@@ -15,7 +13,6 @@ function PageContent() {
   if (currentPath.startsWith("/agents/")) return <AgentDetail />;
   if (currentPath === "/chat/test") return <ChatTest />;
   if (currentPath.startsWith("/chat/group/")) return <GroupChat />;
-  if (currentPath === "/orchestrator") return <OrchestratorPage />;
 
   return (
     <div className="flex h-full items-center justify-center">

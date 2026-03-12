@@ -1,15 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useGatewayStore } from "@/lib/stores/gateway-store";
 
 export function ConnectionDialog({ onClose }: { onClose?: () => void }) {
   const connect = useGatewayStore((s) => s.connect);
   const connectionState = useGatewayStore((s) => s.connectionState);
 
-  const [url, setUrl] = useState(
-    () => localStorage.getItem("claw-console:url") || "http://localhost:18789"
-  );
+  const [url, setUrl] = useState(() => {
+    const saved = localStorage.getItem("claw-console:url");
+    if (saved) return saved;
+    const host = typeof window !== "undefined" ? window.location.hostname : "";
+    if (host === "localhost" || host === "127.0.0.1") return "http://localhost:18789";
+    if (host.endsWith(".ts.net")) return `https://${host}`;
+    return "";
+  });
+
+  // If URL is empty, try server-side discovery
+  useEffect(() => {
+    if (url) return;
+    fetch("/api/gateway-info")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.url) setUrl(data.url);
+      })
+      .catch(() => {});
+  }, []);
   const [token, setToken] = useState(
     () => localStorage.getItem("claw-console:token") || ""
   );
@@ -20,8 +36,8 @@ export function ConnectionDialog({ onClose }: { onClose?: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay">
-      <div className="w-full max-w-md border border-border-interactive bg-surface p-6 relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4">
+      <div className="w-full max-w-md border border-border-interactive bg-surface p-4 sm:p-6 relative max-h-[90vh] overflow-y-auto">
         {/* Unicode box-drawing corners */}
         <span className="absolute top-1 left-2 font-mono text-fg-ghost text-xs">{"╔"}</span>
         <span className="absolute top-1 right-2 font-mono text-fg-ghost text-xs">{"╗"}</span>

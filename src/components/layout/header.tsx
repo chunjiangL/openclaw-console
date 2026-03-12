@@ -122,7 +122,7 @@ export function Header({ onMenuToggle, onConfigOpen }: HeaderProps) {
         </div>
         <button
           onClick={onConfigOpen}
-          className="hidden sm:block border border-border-interactive px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-fg-subtle hover:bg-active hover:text-fg transition-all"
+          className="border border-border-interactive px-2 sm:px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-fg-subtle hover:bg-active hover:text-fg transition-all"
         >
           [CONFIG]
         </button>
@@ -131,7 +131,8 @@ export function Header({ onMenuToggle, onConfigOpen }: HeaderProps) {
             onClick={disconnect}
             className="border border-border-interactive px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-fg-dim hover:bg-active hover:text-fg transition-all"
           >
-            [DISCONNECT]
+            <span className="hidden sm:inline">[DISCONNECT]</span>
+            <span className="sm:hidden">[DC]</span>
           </button>
         ) : (
           <button

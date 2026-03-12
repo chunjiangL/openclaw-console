@@ -8,8 +8,8 @@ import { useGatewayStore } from "@/lib/stores/gateway-store";
 import { useGroupStore } from "@/lib/stores/group-store";
 
 // Auto-connect: detect gateway URL from current page origin
-function resolveGatewayUrl(): string {
-  if (typeof window === "undefined") return "";
+function resolveGatewayUrlSync(): string | null {
+  if (typeof window === "undefined") return null;
   const saved = localStorage.getItem("claw-console:url");
   if (saved) return saved;
   const host = window.location.hostname;
@@ -21,16 +21,30 @@ function resolveGatewayUrl(): string {
   if (host.endsWith(".ts.net")) {
     return `https://${host}`;
   }
-  // Tailscale IP (100.x.x.x) — gateway is on loopback, route through tailscale serve
-  if (/^100\.\d+\.\d+\.\d+$/.test(host)) {
-    return "https://chunjiangs-macbook-air.tailac3d12.ts.net";
+  // Tailscale IP or other — needs server-side discovery
+  return null;
+}
+
+async function resolveGatewayUrl(): Promise<string> {
+  const sync = resolveGatewayUrlSync();
+  if (sync) return sync;
+
+  // Ask the server to discover the gateway URL (e.g. via tailscale status)
+  try {
+    const res = await fetch("/api/gateway-info");
+    if (res.ok) {
+      const data = await res.json();
+      if (data.url) return data.url;
+    }
+  } catch {
+    // Server unreachable — fall through
   }
-  return `${proto}://${host}:18789`;
+  return "";
 }
 
 function resolveGatewayToken(): string {
   if (typeof window === "undefined") return "";
-  return localStorage.getItem("claw-console:token") ?? "90ac8af93822f08ed4d04e514804df6d2560228d160281fa";
+  return localStorage.getItem("claw-console:token") ?? "";
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -47,15 +61,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     loadGroups();
   }, [loadGroups]);
 
-  // Auto-connect on mount
+  // Auto-connect on mount, or show connection dialog if no URL resolved
   useEffect(() => {
     if (!mounted || startedRef.current) return;
     startedRef.current = true;
-    const url = resolveGatewayUrl();
-    const token = resolveGatewayToken();
-    if (url) {
-      connect(url, token);
-    }
+
+    resolveGatewayUrl().then((url) => {
+      const token = resolveGatewayToken();
+      if (url && token) {
+        // Both URL and token saved — auto-connect
+        connect(url, token);
+      } else {
+        // Missing URL or token — show dialog so user can fill in
+        setShowSettings(true);
+      }
+    });
   }, [mounted, connect]);
 
   if (!mounted) {
@@ -75,7 +95,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-surface">
-      <Sidebar />
+      {/* Desktop sidebar — always visible */}
+      <div className="hidden md:flex">
+        <Sidebar onNavigate={() => {}} />
+      </div>
+
+      {/* Mobile sidebar — overlay drawer */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 flex md:hidden">
+          <div className="absolute inset-0 bg-overlay" onClick={() => setSidebarOpen(false)} />
+          <div className="relative z-50 w-64 shrink-0">
+            <Sidebar onNavigate={() => setSidebarOpen(false)} />
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header
           onMenuToggle={() => setSidebarOpen((v) => !v)}
