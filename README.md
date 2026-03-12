@@ -20,9 +20,6 @@ npm run dev
 # Open http://localhost:3000
 ```
 
-On first visit, the connection dialog will ask for:
-- **Gateway URL** — auto-detected on localhost (`http://localhost:18789`)
-- **Auth Token** — the gateway auth token from your `~/.openclaw/openclaw.json` (`gateway.auth.token`)
 
 ## CLI
 
@@ -32,22 +29,20 @@ The included CLI provides access modes for different network setups:
 # Install globally (optional)
 npm link
 
-# Localhost only (default, most secure)
+# Localhost only (default)
 claw-console
 
-# Tailscale network — accessible from devices on your tailnet
+# Tailscale
 claw-console lan
 
-# All connections — no IP filtering
+# All connections
 claw-console all
 
 # Custom port
 claw-console lan -p 8080
 
-# Dev mode with hot reload
 claw-console --dev
 
-# Build for production
 claw-console --build
 ```
 
