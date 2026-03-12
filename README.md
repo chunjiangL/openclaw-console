@@ -1,26 +1,12 @@
 # Claw Console
 
-A standalone web dashboard for [OpenClaw](https://github.com/openclaw/openclaw). Connects to the OpenClaw gateway over WebSocket to provide agent management, multi-agent group chat, and real-time monitoring.
+A standalone web dashboard for [OpenClaw](https://github.com/openclaw/openclaw). Connects to the OpenClaw gateway over WebSocket
 
-```
-╔══════════════════════════════════════╗
-║         CLAW CONSOLE                 ║
-╚══════════════════════════════════════╝
-```
 
 ## Features
 
 - **Agent Dashboard** — view agent status, configuration, sessions, tools, skills, cron jobs, and channels
 - **Multi-Agent Group Chat** — chat with multiple agents in parallel or sequential mode with context sharing
-- **Real-Time Events** — live streaming of agent responses via WebSocket
-- **Ed25519 Device Auth** — cryptographic device identity for secure gateway connections
-- **Access Control** — middleware-based IP filtering (localhost / Tailscale / unrestricted)
-- **Themes** — multiple DOS-inspired color themes
-
-## Prerequisites
-
-- **Node.js 22+**
-- **OpenClaw gateway** running (default: `http://localhost:18789`)
 
 ## Quick Start
 
@@ -75,7 +61,7 @@ claw-console --build
 
 ## Tailscale Setup
 
-To access Claw Console from your phone or other devices on your Tailscale network:
+To access Claw Console from devices on your Tailscale network:
 
 ### 1. Start the console in LAN mode
 
@@ -85,15 +71,13 @@ claw-console lan
 npm run dev:lan
 ```
 
-### 2. Expose via Tailscale Serve (recommended)
+### 2. Expose via Tailscale Serve
 
 Use `tailscale serve` to proxy HTTPS traffic to your local console:
 
 ```bash
 tailscale serve --bg --https=3443 http://127.0.0.1:3000
 ```
-
-Now access the console at `https://<your-hostname>.ts.net:3443` from any device on your tailnet.
 
 ### 3. Configure the gateway
 
@@ -123,26 +107,6 @@ tailscale serve --bg --https=443 http://127.0.0.1:18789
 
 When accessing the console from a Tailscale IP, the server-side API route (`/api/gateway-info`) automatically discovers the gateway URL by running `tailscale status --json`. No manual URL entry needed.
 
-## npm Scripts
-
-| Script | Description |
-|--------|-------------|
-| `npm run dev` | Dev server on `127.0.0.1:3000` (Turbopack) |
-| `npm run dev:lan` | Dev server on `0.0.0.0:3000` |
-| `npm run build` | Production build |
-| `npm start` | Production server on `127.0.0.1` |
-| `npm run start:lan` | Production server on `0.0.0.0` |
-| `npm test` | Run tests (Vitest) |
-| `npm run test:watch` | Run tests in watch mode |
-
-## Tech Stack
-
-- **Next.js 16** with Turbopack
-- **React 19** + TypeScript (strict)
-- **Tailwind CSS 4**
-- **Zustand** for state management
-- **Vitest** + Testing Library for tests
-- **Ed25519** (`@noble/ed25519`) for device identity
 
 ## Architecture
 
